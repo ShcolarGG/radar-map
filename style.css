@@ -1,0 +1,132 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Обёртка, сохраняющая пропорции 4:3 */
+#game-wrap {
+  position: relative;
+  width: min(100vw, calc(100vh * 4 / 3));
+  height: min(100vh, calc(100vw * 3 / 4));
+  background: #000;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  background: #000;
+}
+
+/* === Тач-управление (видно только на сенсорных устройствах) === */
+#touch-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  #touch-controls { display: block; }
+}
+
+.dpad {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 60px);
+  grid-template-rows: repeat(3, 60px);
+  gap: 6px;
+  pointer-events: none;
+}
+
+.dpad .btn {
+  pointer-events: auto;
+}
+
+.dpad .up    { grid-column: 2; grid-row: 1; }
+.dpad .left  { grid-column: 1; grid-row: 2; }
+.dpad .right { grid-column: 3; grid-row: 2; }
+.dpad .down  { grid-column: 2; grid-row: 3; }
+
+.btn {
+  background: rgba(20, 20, 20, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  color: #fff;
+  font-size: 20px;
+  border-radius: 12px;
+  padding: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active {
+  background: rgba(90, 90, 90, 0.9);
+}
+
+.fire {
+  position: absolute;
+  right: 24px;
+  bottom: 40px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 100, 100, 0.9);
+  background: rgba(60, 10, 10, 0.75);
+  color: #ff5555;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  pointer-events: auto;
+}
+
+.fire:active {
+  background: rgba(120, 20, 20, 0.95);
+}
+
+/* === Disclaimer-оверлей === */
+#disclaimer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.35s ease;
+}
+
+#disclaimer.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#disclaimer img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}

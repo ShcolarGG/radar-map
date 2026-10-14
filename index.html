@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Radar Map</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="640" height="480"></canvas>
+
+    <div id="touch-controls">
+      <div class="dpad">
+        <button class="btn up"    data-key="ArrowUp">▲</button>
+        <button class="btn left"  data-key="ArrowLeft">◀</button>
+        <button class="btn right" data-key="ArrowRight">▶</button>
+        <button class="btn down"  data-key="ArrowDown">▼</button>
+      </div>
+      <button class="btn fire" id="fire-btn">FIRE</button>
+    </div>
+  </div>
+
+  <div id="disclaimer">
+    <img id="disclaimer-img" src="" alt="disclaimer" />
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

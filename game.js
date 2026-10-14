@@ -45,7 +45,7 @@ const BOTS = {
 };
 
 const DISCLAIMER_IMAGES = ['disclaimer_1.png', 'disclaimer_2.png', 'disclaimer_3.png'];
-const DISCLAIMER_INTERVAL = 100;
+const DISCLAIMER_INTERVAL = 300;
 
 // ===== Canvas =====
 const canvas = document.getElementById('game');
@@ -92,64 +92,46 @@ function hideDisclaimer() {
 
 startDisclaimerLoop();
 
-// ===== Звук мотора =====
-const engineAudio = new Audio('sh.mp3');
-engineAudio.loop = true;
-engineAudio.preload = 'auto';
-engineAudio.volume = ENGINE.minVol;
-engineAudio.playbackRate = ENGINE.minRate;
+// ===== Аудио: создаётся ТОЛЬКО при первом пользовательском действии =====
+let engineAudio = null;
+let musicAudio = null;
+let boomSoundBase = null;
+let audioStarted = false;
 
-// ===== Музыка =====
-const musicAudio = new Audio('soundtrack.mp3');
-musicAudio.loop = true;
-musicAudio.preload = 'auto';
-musicAudio.volume = MUSIC_VOLUME;
+function startAudio() {
+  if (audioStarted) return;
+  audioStarted = true;
 
-let audioUnlocked = false;
-let engineStarted  = false;
-let musicStarted   = false;
+  // Мотор
+  engineAudio = new Audio('sh.mp3');
+  engineAudio.loop = true;
+  engineAudio.preload = 'auto';
+  engineAudio.volume = ENGINE.minVol;
+  engineAudio.playbackRate = ENGINE.minRate;
+  engineAudio.play().catch((e) => console.warn('Мотор не запустился:', e));
 
-function startMutedPlayback() {
-  if (!engineStarted) {
-    engineAudio.muted = true;
-    engineAudio.play()
-      .then(() => { engineStarted = true; })
-      .catch((err) => console.warn('Мотор не запустился:', err));
-  }
-  if (!musicStarted) {
-    musicAudio.muted = true;
-    musicAudio.play()
-      .then(() => { musicStarted = true; })
-      .catch((err) => console.warn('Музыка не запустилась:', err));
-  }
+  // Музыка
+  musicAudio = new Audio('soundtrack.mp3');
+  musicAudio.loop = true;
+  musicAudio.preload = 'auto';
+  musicAudio.volume = MUSIC_VOLUME;
+  musicAudio.play().catch((e) => console.warn('Музыка не запустилась:', e));
+
+  // База для взрыва (клон при каждом вызове)
+  boomSoundBase = new Audio('boom.mp3');
+  boomSoundBase.preload = 'auto';
+  boomSoundBase.volume = 0.7;
 }
 
-function unlockAudio() {
-  hideDisclaimer();
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-
-  if (!engineStarted) startMutedPlayback();
-
-  engineAudio.muted = false;
-  musicAudio.muted = false;
-
-  engineAudio.play().catch(() => {});
-  musicAudio.play().catch(() => {});
-
-  const t = Math.abs(sh.speed) / CFG.maxSpeed;
-  engineAudio.playbackRate = ENGINE.minRate + (ENGINE.maxRate - ENGINE.minRate) * t;
-  engineAudio.volume       = ENGINE.minVol  + (ENGINE.maxVol  - ENGINE.minVol ) * t;
+function playBoomSound() {
+  if (!boomSoundBase) return;
+  const s = boomSoundBase.cloneNode();
+  s.volume = boomSoundBase.volume;
+  s.play().catch((err) => console.warn('boom.mp3 не проигран:', err));
 }
-
-startMutedPlayback();
-
-window.addEventListener('keydown', unlockAudio);
-window.addEventListener('pointerdown', unlockAudio);
-window.addEventListener('touchstart', unlockAudio);
 
 function updateEngine() {
-  if (!audioUnlocked) return;
+  if (!engineAudio) return;
 
   const t = Math.abs(sh.speed) / CFG.maxSpeed;
   const rate = ENGINE.minRate + (ENGINE.maxRate - ENGINE.minRate) * t;
@@ -157,17 +139,6 @@ function updateEngine() {
 
   engineAudio.playbackRate += (rate - engineAudio.playbackRate) * ENGINE.smoothing;
   engineAudio.volume       += (vol  - engineAudio.volume)       * ENGINE.smoothing;
-}
-
-// ===== Звук взрыва =====
-const boomSoundBase = new Audio('boom.mp3');
-boomSoundBase.preload = 'auto';
-boomSoundBase.volume = 0.7;
-
-function playBoomSound() {
-  const s = boomSoundBase.cloneNode();
-  s.volume = boomSoundBase.volume;
-  s.play().catch((err) => console.warn('boom.mp3 не проигран:', err));
 }
 
 // ===== Состояние =====
@@ -190,6 +161,16 @@ let botSpawnTimer = 0;
 let scoreKilled = 0;
 let scoreMissed = 0;
 
+// ===== Разблокировка аудио при первом действии =====
+function unlockAudio() {
+  hideDisclaimer();
+  startAudio();
+}
+
+window.addEventListener('keydown', unlockAudio);
+window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('touchstart', unlockAudio);
+
 // ===== Ввод: клавиатура =====
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
@@ -210,6 +191,7 @@ function bindKeyButton(btn) {
 
   const press = (e) => {
     e.preventDefault();
+    unlockAudio();
     keys[code] = true;
   };
   const release = (e) => {
@@ -230,18 +212,11 @@ const fireBtn = document.getElementById('fire-btn');
 if (fireBtn) {
   fireBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    unlockAudio();
     spawnBoom(sh.x + SH_W / 2, sh.y + SH_H / 2);
   });
   fireBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-
-// Страховка: при отпускании пальца где угодно — сброс всех тач-клавиш
-window.addEventListener('pointerup', () => {
-  ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].forEach(k => {
-    // оставляем клавиатурные клавиши работать — сбрасываем только если не было keydown
-    // (проверка простая: если пользователь не на клаве, там всё равно false)
-  });
-});
 
 function spawnBoom(x, y) {
   booms.push({ x, y, born: performance.now() });
@@ -355,21 +330,16 @@ function update(dt) {
     afkTimer = 0;
     afkActive = false;
 
-    if (up) {
-      sh.speed += CFG.accel * dt;
-    } else if (down) {
-      sh.speed -= CFG.decel * dt;
-    } else {
-      const fr = CFG.friction * CFG.maxSpeed * dt;
-      if (Math.abs(sh.speed) <= fr) sh.speed = 0;
-      else sh.speed -= Math.sign(sh.speed) * fr;
-    }
-    sh.speed = clamp(sh.speed, -CFG.maxSpeed, CFG.maxSpeed);
+    // ГАЗ — при любом направлении
+    sh.speed += CFG.accel * dt;
 
+    // Поворот — только влево/вправо
     const steerFactor = Math.min(1, Math.abs(sh.speed) / 100);
     const steerRad = (CFG.steer * Math.PI / 180) * dt * steerFactor;
-    if (left) sh.angle -= steerRad;
+    if (left)  sh.angle -= steerRad;
     if (right) sh.angle += steerRad;
+
+    sh.speed = clamp(sh.speed, -CFG.maxSpeed, CFG.maxSpeed);
   } else {
     afkTimer += dt * 1000;
 

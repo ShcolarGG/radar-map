@@ -45,7 +45,7 @@ const BOTS = {
 };
 
 const DISCLAIMER_IMAGES = ['disclaimer_1.png', 'disclaimer_2.png', 'disclaimer_3.png'];
-const DISCLAIMER_INTERVAL = 2500;
+const DISCLAIMER_INTERVAL = 100;
 
 // ===== Canvas =====
 const canvas = document.getElementById('game');

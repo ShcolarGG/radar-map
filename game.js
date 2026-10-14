@@ -92,46 +92,59 @@ function hideDisclaimer() {
 
 startDisclaimerLoop();
 
-// ===== Аудио: создаётся ТОЛЬКО при первом пользовательском действии =====
+// ===== Аудио =====
 let engineAudio = null;
 let musicAudio = null;
 let boomSoundBase = null;
-let audioStarted = false;
+let enginePlaying = false;
+let musicPlaying = false;
 
-function startAudio() {
-  if (audioStarted) return;
-  audioStarted = true;
+function ensureAudioObjects() {
+  if (!engineAudio) {
+    engineAudio = new Audio('sh.mp3');
+    engineAudio.loop = true;
+    engineAudio.preload = 'auto';
+    engineAudio.volume = ENGINE.minVol;
+    engineAudio.playbackRate = ENGINE.minRate;
+  }
+  if (!musicAudio) {
+    musicAudio = new Audio('soundtrack.mp3');
+    musicAudio.loop = true;
+    musicAudio.preload = 'auto';
+    musicAudio.volume = MUSIC_VOLUME;
+  }
+  if (!boomSoundBase) {
+    boomSoundBase = new Audio('boom.mp3');
+    boomSoundBase.preload = 'auto';
+    boomSoundBase.volume = 0.7;
+  }
+}
 
-  // Мотор
-  engineAudio = new Audio('sh.mp3');
-  engineAudio.loop = true;
-  engineAudio.preload = 'auto';
-  engineAudio.volume = ENGINE.minVol;
-  engineAudio.playbackRate = ENGINE.minRate;
-  engineAudio.play().catch((e) => console.warn('Мотор не запустился:', e));
+function tryStartPlayback() {
+  ensureAudioObjects();
 
-  // Музыка
-  musicAudio = new Audio('soundtrack.mp3');
-  musicAudio.loop = true;
-  musicAudio.preload = 'auto';
-  musicAudio.volume = MUSIC_VOLUME;
-  musicAudio.play().catch((e) => console.warn('Музыка не запустилась:', e));
+  if (!enginePlaying) {
+    engineAudio.play()
+      .then(() => { enginePlaying = true; console.log('engine OK'); })
+      .catch((e) => console.warn('engine fail:', e.name, e.message));
+  }
 
-  // База для взрыва (клон при каждом вызове)
-  boomSoundBase = new Audio('boom.mp3');
-  boomSoundBase.preload = 'auto';
-  boomSoundBase.volume = 0.7;
+  if (!musicPlaying) {
+    musicAudio.play()
+      .then(() => { musicPlaying = true; console.log('music OK'); })
+      .catch((e) => console.warn('music fail:', e.name, e.message));
+  }
 }
 
 function playBoomSound() {
   if (!boomSoundBase) return;
   const s = boomSoundBase.cloneNode();
   s.volume = boomSoundBase.volume;
-  s.play().catch((err) => console.warn('boom.mp3 не проигран:', err));
+  s.play().catch(() => {});
 }
 
 function updateEngine() {
-  if (!engineAudio) return;
+  if (!engineAudio || !enginePlaying) return;
 
   const t = Math.abs(sh.speed) / CFG.maxSpeed;
   const rate = ENGINE.minRate + (ENGINE.maxRate - ENGINE.minRate) * t;
@@ -139,6 +152,42 @@ function updateEngine() {
 
   engineAudio.playbackRate += (rate - engineAudio.playbackRate) * ENGINE.smoothing;
   engineAudio.volume       += (vol  - engineAudio.volume)       * ENGINE.smoothing;
+}
+
+function unlockAudio() {
+  hideDisclaimer();
+  tryStartPlayback();
+}
+
+// Слушаем как можно больше событий — на мобильных сработает хоть одно
+window.addEventListener('keydown', unlockAudio);
+window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('touchstart', unlockAudio, { passive: true });
+window.addEventListener('touchend', unlockAudio, { passive: true });
+window.addEventListener('click', unlockAudio);
+
+// В кнопках:
+function bindKeyButton(btn) {
+  const code = btn.dataset.key;
+  if (!code) return;
+
+  const press = (e) => {
+    e.preventDefault();
+    unlockAudio();
+    keys[code] = true;
+  };
+  const release = (e) => {
+    if (e) e.preventDefault();
+    keys[code] = false;
+  };
+
+  btn.addEventListener('pointerdown', press);
+  btn.addEventListener('touchstart', press, { passive: false });
+  btn.addEventListener('pointerup', release);
+  btn.addEventListener('touchend', release);
+  btn.addEventListener('pointercancel', release);
+  btn.addEventListener('pointerleave', release);
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 // ===== Состояние =====

@@ -21,7 +21,7 @@ const ENGINE = {
   maxRate: 2.0,
   minVol:  0.15,
   maxVol:  0.55,
-  smoothing: 0.15
+  smoothing: 0.15,
 };
 
 const AFK = {
@@ -45,7 +45,7 @@ const BOTS = {
 };
 
 const DISCLAIMER_IMAGES = ['disclaimer_1.png', 'disclaimer_2.png', 'disclaimer_3.png'];
-const DISCLAIMER_INTERVAL = 300;
+const DISCLAIMER_INTERVAL = 2500;
 
 // ===== Canvas =====
 const canvas = document.getElementById('game');
@@ -96,55 +96,70 @@ startDisclaimerLoop();
 let engineAudio = null;
 let musicAudio = null;
 let boomSoundBase = null;
-let enginePlaying = false;
-let musicPlaying = false;
+let audioUnlocked = false;
+let enginePlayPending = false;
+let musicPlayPending = false;
 
 function ensureAudioObjects() {
-  if (!engineAudio) {
-    engineAudio = new Audio('sh.mp3');
-    engineAudio.loop = true;
-    engineAudio.preload = 'auto';
-    engineAudio.volume = ENGINE.minVol;
-    engineAudio.playbackRate = ENGINE.minRate;
-  }
-  if (!musicAudio) {
-    musicAudio = new Audio('soundtrack.mp3');
-    musicAudio.loop = true;
-    musicAudio.preload = 'auto';
-    musicAudio.volume = MUSIC_VOLUME;
-  }
-  if (!boomSoundBase) {
-    boomSoundBase = new Audio('boom.mp3');
-    boomSoundBase.preload = 'auto';
-    boomSoundBase.volume = 0.7;
+  if (engineAudio) return;
+
+  engineAudio = new Audio('sh.mp3');
+  engineAudio.loop = true;
+  engineAudio.preload = 'auto';
+  engineAudio.volume = ENGINE.minVol;
+  engineAudio.playbackRate = ENGINE.minRate;
+
+  musicAudio = new Audio('soundtrack.mp3');
+  musicAudio.loop = true;
+  musicAudio.preload = 'auto';
+  musicAudio.volume = MUSIC_VOLUME;
+
+  boomSoundBase = new Audio('boom.mp3');
+  boomSoundBase.preload = 'auto';
+  boomSoundBase.volume = 0.7;
+}
+
+function safePlay(audio, tag) {
+  if (!audio) return;
+  if (!audio.paused) return;
+
+  if (tag === 'engine' && enginePlayPending) return;
+  if (tag === 'music' && musicPlayPending) return;
+
+  if (tag === 'engine') enginePlayPending = true;
+  if (tag === 'music')  musicPlayPending  = true;
+
+  const p = audio.play();
+  if (p && p.then) {
+    p.then(() => {
+      if (tag === 'engine') enginePlayPending = false;
+      if (tag === 'music')  musicPlayPending  = false;
+      console.log(tag + ' OK');
+    }).catch((err) => {
+      if (tag === 'engine') enginePlayPending = false;
+      if (tag === 'music')  musicPlayPending  = false;
+      console.warn(tag + ' fail:', err.name, err.message);
+    });
+  } else {
+    if (tag === 'engine') enginePlayPending = false;
+    if (tag === 'music')  musicPlayPending  = false;
   }
 }
 
-function tryStartPlayback() {
+function unlockAudio() {
+  hideDisclaimer();
   ensureAudioObjects();
 
-  if (!enginePlaying) {
-    engineAudio.play()
-      .then(() => { enginePlaying = true; console.log('engine OK'); })
-      .catch((e) => console.warn('engine fail:', e.name, e.message));
-  }
+  if (audioUnlocked) return;
 
-  if (!musicPlaying) {
-    musicAudio.play()
-      .then(() => { musicPlaying = true; console.log('music OK'); })
-      .catch((e) => console.warn('music fail:', e.name, e.message));
-  }
-}
+  safePlay(engineAudio, 'engine');
+  safePlay(musicAudio, 'music');
 
-function playBoomSound() {
-  if (!boomSoundBase) return;
-  const s = boomSoundBase.cloneNode();
-  s.volume = boomSoundBase.volume;
-  s.play().catch(() => {});
+  audioUnlocked = true;
 }
 
 function updateEngine() {
-  if (!engineAudio || !enginePlaying) return;
+  if (!engineAudio || engineAudio.paused) return;
 
   const t = Math.abs(sh.speed) / CFG.maxSpeed;
   const rate = ENGINE.minRate + (ENGINE.maxRate - ENGINE.minRate) * t;
@@ -154,41 +169,26 @@ function updateEngine() {
   engineAudio.volume       += (vol  - engineAudio.volume)       * ENGINE.smoothing;
 }
 
-function unlockAudio() {
-  hideDisclaimer();
-  tryStartPlayback();
+function playBoomSound() {
+  if (!boomSoundBase) return;
+  const s = boomSoundBase.cloneNode();
+  s.volume = boomSoundBase.volume;
+  s.play().catch(() => {});
 }
 
-// Слушаем как можно больше событий — на мобильных сработает хоть одно
-window.addEventListener('keydown', unlockAudio);
-window.addEventListener('pointerdown', unlockAudio);
-window.addEventListener('touchstart', unlockAudio, { passive: true });
-window.addEventListener('touchend', unlockAudio, { passive: true });
-window.addEventListener('click', unlockAudio);
-
-// В кнопках:
-function bindKeyButton(btn) {
-  const code = btn.dataset.key;
-  if (!code) return;
-
-  const press = (e) => {
-    e.preventDefault();
-    unlockAudio();
-    keys[code] = true;
-  };
-  const release = (e) => {
-    if (e) e.preventDefault();
-    keys[code] = false;
-  };
-
-  btn.addEventListener('pointerdown', press);
-  btn.addEventListener('touchstart', press, { passive: false });
-  btn.addEventListener('pointerup', release);
-  btn.addEventListener('touchend', release);
-  btn.addEventListener('pointercancel', release);
-  btn.addEventListener('pointerleave', release);
-  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+// Разблокировка аудио — единый обработчик
+function onFirstUserAction() {
+  unlockAudio();
+  window.removeEventListener('keydown', onFirstUserAction);
+  window.removeEventListener('pointerdown', onFirstUserAction);
+  window.removeEventListener('touchstart', onFirstUserAction);
+  window.removeEventListener('click', onFirstUserAction);
 }
+
+window.addEventListener('keydown', onFirstUserAction);
+window.addEventListener('pointerdown', onFirstUserAction);
+window.addEventListener('touchstart', onFirstUserAction, { passive: true });
+window.addEventListener('click', onFirstUserAction);
 
 // ===== Состояние =====
 const sh = {
@@ -209,16 +209,6 @@ const bots = [];
 let botSpawnTimer = 0;
 let scoreKilled = 0;
 let scoreMissed = 0;
-
-// ===== Разблокировка аудио при первом действии =====
-function unlockAudio() {
-  hideDisclaimer();
-  startAudio();
-}
-
-window.addEventListener('keydown', unlockAudio);
-window.addEventListener('pointerdown', unlockAudio);
-window.addEventListener('touchstart', unlockAudio);
 
 // ===== Ввод: клавиатура =====
 window.addEventListener('keydown', (e) => {
@@ -285,7 +275,7 @@ function spawnBot() {
 
   const course = BOTS.minCourse + Math.random() * (BOTS.maxCourse - BOTS.minCourse);
 
-  let x, y, angle;
+  let x = MAP_W / 2, y = MAP_H / 2, angle = 0;
   const cx = sh.x + SH_W / 2;
   const cy = sh.y + SH_H / 2;
   const minD2 = BOTS.minSpawnDistFromSh * BOTS.minSpawnDistFromSh;
@@ -379,10 +369,8 @@ function update(dt) {
     afkTimer = 0;
     afkActive = false;
 
-    // ГАЗ — при любом направлении
     sh.speed += CFG.accel * dt;
 
-    // Поворот — только влево/вправо
     const steerFactor = Math.min(1, Math.abs(sh.speed) / 100);
     const steerRad = (CFG.steer * Math.PI / 180) * dt * steerFactor;
     if (left)  sh.angle -= steerRad;

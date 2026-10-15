@@ -9,7 +9,7 @@ const BOOM_FRAMES_COUNT = 4;
 const BOOM_FRAME_MS = 60;
 
 const CFG = {
-  maxSpeed: 350,
+  maxSpeed: 1150,
   accel: 200,
   decel: 300,
   steer: 225,
@@ -34,8 +34,8 @@ const AFK = {
 const MUSIC_VOLUME = 0.35;
 
 const BOTS = {
-  spawnInterval: 500,
-  maxCount: 50,
+  spawnInterval: 10,
+  maxCount: 500,
   speed: 60,
   minCourse: 750,
   maxCourse: 1400,

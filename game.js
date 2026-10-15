@@ -34,8 +34,8 @@ const AFK = {
 const MUSIC_VOLUME = 0.35;
 
 const BOTS = {
-  spawnInterval: 2500,
-  maxCount: 5,
+  spawnInterval: 500,
+  maxCount: 50,
   speed: 60,
   minCourse: 750,
   maxCourse: 1400,
@@ -45,7 +45,7 @@ const BOTS = {
 };
 
 const DISCLAIMER_IMAGES = ['disclaimer_1.png', 'disclaimer_2.png', 'disclaimer_3.png'];
-const DISCLAIMER_INTERVAL = 2500;
+const DISCLAIMER_INTERVAL = 500;
 
 // ===== Canvas =====
 const canvas = document.getElementById('game');
